@@ -1,4 +1,0 @@
-lxml
-aiohttp
-tenacity
-filetype

@@ -1,56 +1,3 @@
-# dcinside.js
-
-eunchul님의 [dcinside-python3-api](https://github.com/eunchuldev/dcinside-python3-api)와 [discord.js](https://github.com/discordjs/discord.js)를 참고하여 개발하였습니다.
-
-### JavaScript용 치명적이고 단순한 비공식 비동기 dcinside API
-
-Deadly simple non official async dcinside api for JavaScripts
-
-```js
-// 갤러리 글 무한 크롤링
-const { Client } = require("discord.js");
-
-let client = new Client();
-
-client.on("ready", () => {
-  console.log("준비 완료!");
-});
-
-client.on("update", (data) => {
-  console.log(data.toString());
-});
-
-client.watch("sff", 500);
-```
-
-# Dependency
-
-webpack, axios, cheerio, html-to-text
-
-# Features
-
-- [x] Board Update Event
-- [x] Board crawling
-- [x] Fetch document body
-- [x] Fetch document images
-- [ ] Fetch comments
-- [ ] Write/Modify/Delete document
-- [ ] Write comment
-- [ ] Delete comment
-- [ ] Login/Logout
-- [ ] Upvote/Downvote
-
-기능은 앞으로 추가 에정입니다.
-
-# Usage
-
-install via npm
-
-```
-npm install dcinside.js
-```
-
-```js
 const { Client } = require("dcinside.js");
 
 let client = new Client();
@@ -92,4 +39,3 @@ client.board("sff", 5).then(async (data) => {
     });
   });
 });
-```
