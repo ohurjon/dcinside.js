@@ -1,11 +1,12 @@
 {
   "name": "dcinside.js",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Deadly simple non official dcinside api for javascript",
   "main": "dist/index.js",
   "scripts": {
     "build": "webpack",
-    "test": "node ./examples/test.js"
+    "test": "webpack && node ./examples/test.js",
+    "publish": "npm publish --access public"
   },
   "repository": {
     "type": "git",
