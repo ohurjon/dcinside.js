@@ -7,7 +7,10 @@ client.on("ready", () => {
 });
 
 client.on("update", (data) => {
-  console.log(data.toString());
+  data.document().then((doc) => {
+    console.log(doc.toString());
+  });
 });
 
-client.watch("sff", 500);
+// client.watch("sff", 3000);
+client.watch("sff", 3000);
