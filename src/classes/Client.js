@@ -55,17 +55,29 @@ class Client extends EventEmitter {
     });
   }
 
-  async watch(boardId, delay) {
-    this.emit("ready");
+  async watch(boardId, delay, limit = null) {
     let lastIndex = 0;
+
+    this.emit("ready");
+
     while (true) {
-      const list = await this.board(boardId);
-      list.forEach((data) => {
-        if (lastIndex < data.id) {
-          lastIndex = data.id;
-          this.emit("update", data);
-        }
+      const list = await this.board(
+        boardId,
+        20,
+        1,
+        false,
+        limit,
+        lastIndex + 1
+      );
+
+      list.reverse().forEach((data) => {
+        this.emit("update", data);
+        lastIndex = data.id;
       });
+
+      if (limit == lastIndex) {
+        break;
+      }
       await sleep(delay);
     }
   }
@@ -179,6 +191,9 @@ class Client extends EventEmitter {
             (documentIdUpperLimit == null || id <= documentIdUpperLimit)
           ) {
             result.push(indexData);
+          } else {
+            stop = true;
+            return;
           }
         }
       });
@@ -262,7 +277,7 @@ class Client extends EventEmitter {
       contents,
       images,
       content.html().trim(),
-      null
+      []
     );
   }
 
