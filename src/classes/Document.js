@@ -34,11 +34,13 @@ class Document {
   }
 
   toString() {
-    return `${this.subject || ""}\t|${this.id}\t|${this.time.toISOString()}\t|${
-      this.author
-    }\t|${this.title}(${this.comments.length}) +${this.voteupCount} -${
+    return `${this.subject || ""}\t|${
+      this.id
+    }\t|${this.time.toLocaleString()}\t|${this.author.name}(${
+      this.author.id
+    })\t|${this.title}(${this.comments.length}) +${this.voteupCount} -${
       this.votedownCount
-    }\n${this.contents}`;
+    }\n${this.contents.replaceAll("\t", "").replaceAll("\n", "")}`;
   }
 }
 
