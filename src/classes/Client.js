@@ -216,8 +216,9 @@ class Client extends EventEmitter {
         } catch (err) {
           if (typeof AxiosError) {
             rejects("Network Error Occurred : " + err);
+          } else {
+            rejects("Unknown error while fetching page : " + err);
           }
-          rejects("Unknown error while fetching page : " + err);
         }
       }
     });
