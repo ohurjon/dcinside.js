@@ -9,6 +9,7 @@ const Image = require("./Image").Image;
 
 const { parseSubject, parseTime, parseTitle, sleep } = require("./Util");
 const EventEmitter = require("events");
+const { AxiosError } = require("axios");
 
 DOCS_PER_PAGE = 200;
 
@@ -61,19 +62,26 @@ class Client extends EventEmitter {
     this.emit("ready");
 
     while (true) {
-      const list = await this.board(
-        boardId,
-        20,
-        1,
-        false,
-        limit,
-        lastIndex + 1
-      );
+      try {
+        const list = await this.board(
+          boardId,
+          20,
+          1,
+          false,
+          limit,
+          lastIndex + 1
+        );
 
-      list.reverse().forEach((data) => {
-        this.emit("update", data);
-        lastIndex = data.id;
-      });
+        list.reverse().forEach((data) => {
+          this.emit("update", data);
+          lastIndex = data.id;
+        });
+      } catch (err) {
+        this.emit(
+          "warn",
+          "An error occurred while importing the gallery. Retry."
+        );
+      }
 
       if (limit == lastIndex) {
         break;
@@ -107,7 +115,7 @@ class Client extends EventEmitter {
     return gallerys;
   }
 
-  async board(
+  board(
     boardId,
     num = 30,
     startPage = 1,
@@ -115,94 +123,104 @@ class Client extends EventEmitter {
     documentIdUpperLimit = null,
     documentIdLowerLimit = null
   ) {
-    let page = startPage;
+    return new Promise(async (resolve, rejects) => {
+      let page = startPage;
 
-    let result = [];
+      let result = [];
 
-    let stop = false;
-    while (!stop) {
-      let url = `https://m.dcinside.com/board/${boardId}?page=${page}`;
-      if (recommend) {
-        url = `https://m.dcinside.com/board/${boardId}?recommend=1&page=${page}`;
-      }
-      const response = await this.session.get(url);
-      const html = response.data.trim();
-
-      const $ = cheerio.load(html);
-      let data = $(".gall-detail-lst .gall-detail-lnktb");
-
-      data.each((index, e) => {
-        const element = $(e);
-
-        const documentUrl = element.find("a.lt").attr("href");
-
-        let id = documentUrl.split("/").pop();
-
-        if (id.includes("?")) {
-          id = id.split("?")[0];
+      let stop = false;
+      while (!stop) {
+        let url = `https://m.dcinside.com/board/${boardId}?page=${page}`;
+        if (recommend) {
+          url = `https://m.dcinside.com/board/${boardId}?recommend=1&page=${page}`;
         }
 
-        const typeClass = element.find(".sp-lst").attr("class");
-        let type = "txt"; //sp-lst-txt
-        if (typeClass.includes("img")) type = "img";
-        if (typeClass.includes("play")) type = "play";
+        try {
+          const response = await this.session.get(url);
+          const html = response.data.trim();
 
-        const recommand = typeClass.includes("reco");
+          const $ = cheerio.load(html);
+          let data = $(".gall-detail-lst .gall-detail-lnktb");
 
-        const title = element.find(".subjectin").text();
+          data.each((_, e) => {
+            const element = $(e);
 
-        const ginfo = element.find(".ginfo").children();
-        const subject = ginfo[0].children[0].data;
+            const documentUrl = element.find("a.lt").attr("href");
 
-        const authorName = element.next().attr("data-name");
-        const authorId = element.next().attr("data-info");
+            let id = documentUrl.split("/").pop();
 
-        const time = parseTime(ginfo[2].children[0].data);
+            if (id.includes("?")) {
+              id = id.split("?")[0];
+            }
 
-        const viewCount = ginfo[3].children[0].data.split(" ").pop();
+            const typeClass = element.find(".sp-lst").attr("class");
+            let type = "txt"; //sp-lst-txt
+            if (typeClass.includes("img")) type = "img";
+            if (typeClass.includes("play")) type = "play";
 
-        const commentCount = element.find(".ct").text();
+            const recommand = typeClass.includes("reco");
 
-        const voteupCount = ginfo[4].children[1].children[0].data;
+            const title = element.find(".subjectin").text();
 
-        let indexData = new DocumentIndex(
-          id,
-          boardId,
-          type,
-          recommand,
-          title,
-          subject,
-          { name: authorName, id: authorId },
-          time,
-          viewCount,
-          voteupCount,
-          commentCount,
-          () => {
-            return this.document(boardId, id);
-          },
-          null
-        );
-        if (num <= result.length) {
-          stop = true;
-          return;
-        } else {
-          if (
-            (documentIdLowerLimit == null || id >= documentIdLowerLimit) &&
-            (documentIdUpperLimit == null || id <= documentIdUpperLimit)
-          ) {
-            result.push(indexData);
+            const ginfo = element.find(".ginfo").children();
+            const subject = ginfo[0].children[0].data;
+
+            const authorName = element.next().attr("data-name");
+            const authorId = element.next().attr("data-info");
+
+            const time = parseTime(ginfo[2].children[0].data);
+
+            const viewCount = ginfo[3].children[0].data.split(" ").pop();
+
+            const commentCount = element.find(".ct").text();
+
+            const voteupCount = ginfo[4].children[1].children[0].data;
+
+            let indexData = new DocumentIndex(
+              id,
+              boardId,
+              type,
+              recommand,
+              title,
+              subject,
+              { name: authorName, id: authorId },
+              time,
+              viewCount,
+              voteupCount,
+              commentCount,
+              () => {
+                return this.document(boardId, id);
+              },
+              null
+            );
+            if (num <= result.length) {
+              stop = true;
+              return;
+            } else {
+              if (
+                (documentIdLowerLimit == null || id >= documentIdLowerLimit) &&
+                (documentIdUpperLimit == null || id <= documentIdUpperLimit)
+              ) {
+                result.push(indexData);
+              } else {
+                stop = true;
+                return;
+              }
+            }
+          });
+          if (stop) {
+            resolve(result);
           } else {
-            stop = true;
-            return;
+            page += 1;
           }
+        } catch (err) {
+          if (typeof AxiosError) {
+            rejects("Network Error Occurred : " + err);
+          }
+          rejects("Unknown error while fetching page : " + err);
         }
-      });
-      if (stop) {
-        return result;
-      } else {
-        page += 1;
       }
-    }
+    });
   }
 
   async document(boardId, documentId) {
