@@ -1,9 +1,26 @@
-class Comment {
-  constructor(id, isReply, author, authorId, contents, dccon, voice, time) {
+import { Author } from "../index.js";
+
+export class Comment {
+  id: string;
+  isReply: boolean;
+  author: Author;
+  contents: string;
+  dccon: string;
+  voice: string;
+  time: Date;
+
+  constructor(
+    id: string,
+    isReply: boolean,
+    author: Author,
+    contents: string,
+    dccon: string,
+    voice: string,
+    time: Date
+  ) {
     this.id = id;
     this.isReply = isReply;
     this.author = author;
-    this.authorId = authorId;
     this.contents = contents;
     this.dccon = dccon;
     this.voice = voice;

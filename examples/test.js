@@ -1,4 +1,4 @@
-const { Client } = require("dcinside.js");
+import { Client } from "dcinside.js";
 
 let client = new Client();
 

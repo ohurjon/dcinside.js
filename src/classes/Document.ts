@@ -1,21 +1,35 @@
-"use strict";
+import { Author, Image, Comment } from "../index.js";
 
-class Document {
+export class Document {
+  id: number;
+  boardId: string;
+  title: string;
+  subject: string | null;
+  author: Author;
+  time: Date;
+  viewCount: number;
+  voteupCount: number;
+  votedownCount: number;
+  gonikVoteupCount: number;
+  comments: Comment[];
+  contents: string;
+  images: Image[];
+  html: string;
   constructor(
-    id,
-    boardId,
-    title,
-    subject = null,
-    author,
-    time,
-    viewCount,
-    voteupCount,
-    votedownCount,
-    loginedVoteupCount,
-    contents,
-    images,
-    html,
-    comments
+    id: number,
+    boardId: string,
+    title: string,
+    subject: string | null = null,
+    author: Author,
+    time: Date,
+    viewCount: number,
+    voteupCount: number,
+    votedownCount: number,
+    gonikVoteupCount: number,
+    contents: string,
+    images: Image[],
+    html: string,
+    comments: Comment[]
   ) {
     this.id = id;
     this.boardId = boardId;
@@ -26,7 +40,7 @@ class Document {
     this.viewCount = viewCount;
     this.voteupCount = voteupCount;
     this.votedownCount = votedownCount;
-    this.loginedVoteupCount = loginedVoteupCount;
+    this.gonikVoteupCount = gonikVoteupCount;
     this.comments = comments;
     this.contents = contents;
     this.images = images;
@@ -43,5 +57,3 @@ class Document {
     }\n${this.contents.replaceAll("\t", "").replaceAll("\n", "")}`;
   }
 }
-
-exports.Document = Document;

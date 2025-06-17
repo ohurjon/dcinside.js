@@ -1,11 +1,21 @@
-"use strict";
+import { Client, GET_HEADERS } from "../index.js";
 
-class Image {
-  constructor(src, documentId, boardId, session) {
+export class Image {
+  client: Client;
+  src: string;
+  documentId: number;
+  boardId: string;
+
+  constructor(
+    src: string,
+    documentId: number,
+    boardId: string,
+    client: Client
+  ) {
     this.src = src;
     this.documentId = documentId;
     this.boardId = boardId;
-    this.session = session;
+    this.client = client;
   }
   async load() {
     const headers = { ...GET_HEADERS }; // 기존 헤더 복사
@@ -14,7 +24,7 @@ class Image {
     ] = `https://m.dcinside.com/board/${this.boardId}/${this.documentId}`;
 
     try {
-      const response = await this.session.get(this.src, {
+      const response = await this.client.session.get(this.src, {
         headers: headers,
         withCredentials: true, // 쿠키 포함 (fetch 사용 시 필요)
       });
@@ -25,7 +35,7 @@ class Image {
     }
   }
 
-  async download(path) {
+  async download(path: string) {
     //TODO
     throw "Not implemented";
     // const headers = { ...GET_HEADERS }; // 기존 헤더 복사
@@ -53,5 +63,3 @@ class Image {
     // }
   }
 }
-
-exports.Image = Image;
