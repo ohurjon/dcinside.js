@@ -18,10 +18,10 @@ export class Image {
     this.client = client;
   }
   async load() {
-    const headers = { ...GET_HEADERS }; // 기존 헤더 복사
-    headers[
-      "Referer"
-    ] = `https://m.dcinside.com/board/${this.boardId}/${this.documentId}`;
+    const headers = {
+      ...GET_HEADERS,
+      Referer: `https://m.dcinside.com/board/${this.boardId}/${this.documentId}`,
+    }; // 기존 헤더 복사
 
     try {
       const response = await this.client.session.get(this.src, {

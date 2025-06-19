@@ -5,7 +5,7 @@ import EventEmitter from "events";
 import {
   GalleryListConverter,
   DocumentIndexListConverter,
-  DocumentConverter,
+  // DocumentConverter,
 } from "./converts/index.js";
 import {
   Gallery,
@@ -101,30 +101,37 @@ export class Client extends EventEmitter implements IClient {
     this.util = new Util();
   }
 
-  watch(boardId: string, delay: number, limit: number | null = null) {
+  async watch(boardId: string, delay: number, limit: number | null = null) {
     let lastIndex = 0;
 
     this.emit("ready");
 
     while (true) {
-      this.board(boardId, 20, 1, false, limit, lastIndex + 1)
-        .then((list) => {
-          list.reverse().forEach((data) => {
-            this.emit("update", data);
-            lastIndex = data.id;
-          });
-        })
-        .catch((err) => {
-          throw new Error("Error while fetching board data:", err);
-        });
+      console.log(`Fetching updates for board: ${boardId}`);
+      const list = await this.board(
+        boardId,
+        20,
+        1,
+        false,
+        limit,
+        lastIndex + 1
+      );
+
+      list.reverse().forEach((data) => {
+        this.emit("update", data);
+        console.log(`New document: ${data.id} - ${data.title}`);
+        lastIndex = data.id;
+      });
+
       if (limit == lastIndex) {
+        console.log(`Reached limit of ${limit}. Stopping watch.`);
         break;
       }
-      this.util.sleep(delay * 1000);
+      await this.util.sleep(delay * 1000);
     }
   }
 
-  gallery(name: string | null): Promise<Gallery[]> {
+  gallery(id: string | null): Promise<Gallery[]> {
     return new Promise((resolve, reject) => {
       let url = "https://m.dcinside.com/galltotal";
 
@@ -134,22 +141,27 @@ export class Client extends EventEmitter implements IClient {
           let html = response.data;
 
           const converter = new GalleryListConverter(this);
-          if (name) {
-            const data = converter.convert(html).get(name);
 
-            if (data == undefined) {
+          const data = converter.convert(html);
+
+          if (id) {
+            const gallery = data.get(id);
+
+            if (gallery == undefined) {
               resolve([]);
             } else {
-              resolve([data]);
+              resolve([gallery]);
             }
           } else {
-            resolve(Array.from(converter.convert(html).values()));
+            resolve(Array.from(data.values()));
           }
         })
         .catch((err) => {
           if (err instanceof AxiosError) {
+            console.error("AxiosError:", err);
             reject("Network Error Occurred : " + err.message);
           } else {
+            console.error("Unknown error:", err);
             reject("Unknown error while fetching gallery list: " + err);
           }
         });
@@ -166,68 +178,72 @@ export class Client extends EventEmitter implements IClient {
   ): Promise<DocumentIndex[]> {
     return new Promise(async (resolve, reject) => {
       let page = startPage;
-
       let result: DocumentIndex[] = [];
-
       let stop = false;
       while (!stop) {
         let url = `https://m.dcinside.com/board/${boardId}?page=${page}`;
         if (recommend) {
           url = `https://m.dcinside.com/board/${boardId}?recommend=1&page=${page}`;
         }
+        // console.log(url);
 
-        this.session.get(url).then((response) => {
-          const html = response.data.trim();
-
-          const converter = new DocumentIndexListConverter(this, boardId);
-          const indexes = Array.from(converter.convert(html).values());
-
-          for (const indexData of indexes) {
-            const id = indexData.id;
-
-            if (num <= result.length) {
+        const response = await this.session.get(url);
+        const html = response.data.trim();
+        const converter = new DocumentIndexListConverter(this, boardId);
+        const data: DocumentIndex[] = converter.convert(html);
+        // console.log(
+        //   `Fetched ${data.length} documents from page ${page} of board ${boardId}`
+        // );
+        const indexes = Array.from(data.values());
+        console.log(
+          `Fetched ${indexes.length} documents from page ${page} of board ${boardId}`
+        );
+        for (const indexData of indexes) {
+          const id = indexData.id;
+          if (num <= result.length) {
+            stop = true;
+            return;
+          } else {
+            if (documentIdLowerLimit == null || id >= documentIdLowerLimit) {
+              if (documentIdUpperLimit == null || id <= documentIdUpperLimit) {
+                result.push(indexData);
+                console.log(result.length, ":", indexData.id, indexData.title);
+              }
+            } else {
+              console.log(
+                `Skipping document ${id} as it is outside the specified range`
+              );
               stop = true;
               return;
-            } else {
-              if (
-                (documentIdLowerLimit == null || id >= documentIdLowerLimit) &&
-                (documentIdUpperLimit == null || id <= documentIdUpperLimit)
-              ) {
-                result.push(indexData);
-              } else {
-                stop = true;
-                return;
-              }
             }
           }
-          if (stop) {
-            resolve(result);
-          } else {
-            page += 1;
-          }
-        });
+        }
+        if (stop) {
+          resolve(result);
+        } else {
+          page += 1;
+        }
       }
     });
   }
 
   document(boardId: string, documentId: number): Promise<Document> {
     return new Promise((resolve, reject) => {
-      const url = `https://m.dcinside.com/board/${boardId}/${documentId}`;
-      this.session
-        .get(url)
-        .then((response) => {
-          const html = response.data.trim();
-          const converter = new DocumentConverter(this, documentId, boardId);
-
-          resolve(converter.convert(html));
-        })
-        .catch((err) => {
-          if (err instanceof AxiosError) {
-            throw new Error("Network Error Occurred: " + err.message);
-          } else {
-            throw new Error("Unknown error while fetching document: " + err);
-          }
-        });
+      // const url = `https://m.dcinside.com/board/${boardId}/${documentId}`;
+      // this.session
+      //   .get(url)
+      //   .then((response) => {
+      //     const html = response.data.trim();
+      //     const converter = new DocumentConverter(this, documentId, boardId);
+      //     resolve(converter.convert(html));
+      //   })
+      //   .catch((err) => {
+      //     if (err instanceof AxiosError) {
+      //       throw new Error("Network Error Occurred: " + err.message);
+      //     } else {
+      //       throw new Error("Unknown error while fetching document: " + err);
+      //     }
+      //   });
     });
   }
 

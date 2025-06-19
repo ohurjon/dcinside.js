@@ -1,7 +1,7 @@
-import { IConverter } from "../Converter";
+import { IConverter } from "../Converter.js";
 
 import * as cheerio from "cheerio";
-import { Author, Client, DocumentIndex } from "../..";
+import { Author, Client, DocumentIndex } from "../../index.js";
 
 /**
  * HTML을 DocumentIndex 객체로 변환하는 클래스
@@ -78,7 +78,7 @@ export class DocumentIndexListConverter implements IConverter {
 
       const ginfo = element.find(".ginfo").children();
 
-      const subject = ginfo[0].children[0].data;
+      const subject = $(ginfo[0]).text();
 
       const authorName = element.next().attr("data-name");
 
@@ -90,19 +90,16 @@ export class DocumentIndexListConverter implements IConverter {
         throw new Error("Author ID not found in element");
       }
 
-      const time = this.client.util.parseTime(ginfo[2].children[0].data);
+      const time = this.client.util.parseTime($(ginfo[2]).text());
 
       const viewCount: number = parseInt(
-        ginfo[3].children[0].data.split(" ").pop()!,
+        $(ginfo[3]).text().split(" ").pop()!,
         10
       );
 
       const commentCount: number = parseInt(element.find(".ct").text(), 10);
 
-      const voteupCount: number = parseInt(
-        ginfo[4].children[1].children[0].data,
-        10
-      );
+      const voteupCount: number = parseInt($(ginfo[4].children[0]).text(), 10);
 
       const documentIndex = new DocumentIndex(
         documentId,
@@ -116,8 +113,8 @@ export class DocumentIndexListConverter implements IConverter {
         viewCount,
         voteupCount,
         commentCount,
-        this.client.document(this.boardId, id),
-        this.client.comments(this.boardId, id)
+        new Promise((resolve, reject) => {}),
+        new Promise((resolve, reject) => {})
       );
 
       documentIndexes.push(documentIndex);

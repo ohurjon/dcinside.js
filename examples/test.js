@@ -1,4 +1,4 @@
-import { Client } from "dcinside.js";
+import { Client } from "../dist/index.js";
 
 let client = new Client();
 
@@ -7,10 +7,26 @@ client.on("ready", () => {
 });
 
 client.on("update", (data) => {
-  data.document().then((doc) => {
-    console.log(doc.toString());
-  });
+  console.log("업데이트:", data);
 });
 
-// client.watch("sff", 3000);
-client.watch("sff", 3000);
+// client.gallery().then((gallery) => {
+//   console.log(gallery.length);
+// });
+
+// client.board("sff", 100).then((board) => {
+//   console.log(board);
+// });
+
+// client
+//   .board("sff", 200, 1, false)
+//   .then((board) => {
+//     console.log(board);
+//   })
+//   .catch((err) => {
+//     console.error(err);
+//   });
+
+client.watch("sff", 3000).catch((err) => {
+  console.error("감시 실패:", err);
+});

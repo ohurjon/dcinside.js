@@ -14,12 +14,12 @@ export class GalleryListConverter implements IConverter {
 
     let $ = cheerio.load(html);
     let data = $(".gall-lst li a");
-    data.toArray().forEach((element) => {
-      const boardName = element.children[0].data;
-      const boardUrl = element.attribs.href;
-      const boardId = boardUrl.split("/").pop();
 
-      galleryList.set(boardId!, new Gallery(boardId!, boardName, boardUrl));
+    data.each((_, element) => {
+      const boardName = $(element).text();
+      const boardUrl = $(element).attr("href")!;
+      const boardId = boardUrl.split("/").pop()!;
+      galleryList.set(boardId, new Gallery(boardId, boardName, boardUrl));
     });
 
     return galleryList;

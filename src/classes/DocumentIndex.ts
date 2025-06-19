@@ -76,5 +76,3 @@ export class DocumentIndex {
     }`;
   }
 }
-
-exports.DocumentIndex = DocumentIndex;
