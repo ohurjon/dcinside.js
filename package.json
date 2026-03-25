@@ -22,7 +22,8 @@
     "@types/html-to-text": "^9.0.4",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
-    "html-to-text": "^9.0.5"
+    "html-to-text": "^9.0.5",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "webpack": "^5.98.0",

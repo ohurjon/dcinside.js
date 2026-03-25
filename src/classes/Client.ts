@@ -5,7 +5,7 @@ import EventEmitter from "events";
 import {
   GalleryListConverter,
   DocumentIndexListConverter,
-  // DocumentConverter,
+  DocumentConverter,
 } from "./converts/index.js";
 import {
   Gallery,
@@ -24,14 +24,14 @@ interface IClient {
     startPage?: number,
     recommend?: boolean,
     documentIdUpperLimit?: number | null,
-    documentIdLowerLimit?: number | null
+    documentIdLowerLimit?: number | null,
   ): Promise<DocumentIndex[]>;
   document(boardId: string, documentId: number): Promise<Document>;
   comments(
     boardId: string,
     documentId: number,
     num?: number,
-    startPage?: number
+    startPage?: number,
   ): Promise<Comment[]>;
   // writeComment(
   //   boardId: number,
@@ -104,67 +104,65 @@ export class Client extends EventEmitter implements IClient {
   async watch(boardId: string, delay: number, limit: number | null = null) {
     let lastIndex = 0;
 
-    this.emit("ready");
+    this.emit("task", `Watching board: ${boardId}`);
 
     while (true) {
-      console.log(`Fetching updates for board: ${boardId}`);
+      this.emit("debug", `Fetching updates for board: ${boardId}`);
       const list = await this.board(
         boardId,
         20,
         1,
         false,
         limit,
-        lastIndex + 1
+        lastIndex + 1,
       );
 
-      list.reverse().forEach((data) => {
+      list.reverse().forEach((data: DocumentIndex) => {
+        this.emit("verbose", `${boardId} ${data.subject} - ${data.title}`);
         this.emit("update", data);
-        console.log(`New document: ${data.id} - ${data.title}`);
         lastIndex = data.id;
       });
 
       if (limit == lastIndex) {
-        console.log(`Reached limit of ${limit}. Stopping watch.`);
+        this.emit("debug", `Reached limit of ${limit}. Stopping watch.`);
         break;
       }
+
       await this.util.sleep(delay * 1000);
     }
   }
 
   gallery(id: string | null): Promise<Gallery[]> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       let url = "https://m.dcinside.com/galltotal";
 
-      this.session
-        .get(url)
-        .then((response) => {
-          let html = response.data;
+      try {
+        const response = await this.session.get(url);
+        const html = response.data.trim();
+        const converter = new GalleryListConverter(this);
 
-          const converter = new GalleryListConverter(this);
+        const data = converter.convert(html);
 
-          const data = converter.convert(html);
+        if (id) {
+          const gallery = data.get(id);
 
-          if (id) {
-            const gallery = data.get(id);
-
-            if (gallery == undefined) {
-              resolve([]);
-            } else {
-              resolve([gallery]);
-            }
+          if (gallery == undefined) {
+            resolve([]);
           } else {
-            resolve(Array.from(data.values()));
+            resolve([gallery]);
           }
-        })
-        .catch((err) => {
-          if (err instanceof AxiosError) {
-            console.error("AxiosError:", err);
-            reject("Network Error Occurred : " + err.message);
-          } else {
-            console.error("Unknown error:", err);
-            reject("Unknown error while fetching gallery list: " + err);
-          }
-        });
+        } else {
+          resolve(Array.from(data.values()));
+        }
+      } catch (err) {
+        if (err instanceof AxiosError) {
+          console.error("AxiosError:", err);
+          reject("Network Error Occurred : " + err.message);
+        } else {
+          console.error("Unknown error:", err);
+          reject("Unknown error while fetching gallery list: " + err);
+        }
+      }
     });
   }
 
@@ -174,7 +172,7 @@ export class Client extends EventEmitter implements IClient {
     startPage: number = 1,
     recommend: boolean = false,
     documentIdUpperLimit: number | null = null,
-    documentIdLowerLimit: number | null = null
+    documentIdLowerLimit: number | null = null,
   ): Promise<DocumentIndex[]> {
     return new Promise(async (resolve, reject) => {
       let page = startPage;
@@ -185,65 +183,95 @@ export class Client extends EventEmitter implements IClient {
         if (recommend) {
           url = `https://m.dcinside.com/board/${boardId}?recommend=1&page=${page}`;
         }
-        // console.log(url);
+        this.emit("debug", `Fetching board data from: ${url}`);
 
         const response = await this.session.get(url);
         const html = response.data.trim();
+
         const converter = new DocumentIndexListConverter(this, boardId);
         const data: DocumentIndex[] = converter.convert(html);
-        // console.log(
-        //   `Fetched ${data.length} documents from page ${page} of board ${boardId}`
-        // );
-        const indexes = Array.from(data.values());
-        console.log(
-          `Fetched ${indexes.length} documents from page ${page} of board ${boardId}`
+        this.emit(
+          "debug",
+          `Fetched ${data.length} documents from page ${page} of board ${boardId}`,
         );
+
+        this.emit(
+          "verbose",
+          `Document IDs on page ${page}: ${data.map((d) => d.id).join(", ")}`,
+        );
+
+        const indexes = Array.from(data.values());
+
+        this.emit(
+          "verbose",
+          `Processing ${indexes.length} documents from page ${page}`,
+        );
+
         for (const indexData of indexes) {
+          this.emit("verbose", `Processing document : ${indexData}`);
           const id = indexData.id;
           if (num <= result.length) {
+            // num이 이미 충족된 경우, 더 이상 문서를 추가하지 않고 루프를 종료합니다.
+            this.emit("debug", `Reached limit of ${num} documents. Stopping.`);
             stop = true;
-            return;
           } else {
             if (documentIdLowerLimit == null || id >= documentIdLowerLimit) {
               if (documentIdUpperLimit == null || id <= documentIdUpperLimit) {
+                // 문서가 범위 내에 있는 경우 결과에 추가합니다.
+                this.emit("debug", `Adding document ${id} to results`);
                 result.push(indexData);
-                console.log(result.length, ":", indexData.id, indexData.title);
               }
             } else {
-              console.log(
-                `Skipping document ${id} as it is outside the specified range`
+              // 문서가 범위 밖에 있는 경우, 더 이상 문서를 추가하지 않고 루프를 종료합니다.
+              this.emit(
+                "debug",
+                `Skipping document ${id} as it is outside the specified range`,
               );
               stop = true;
-              return;
             }
           }
         }
         if (stop) {
+          // 더 이상 페이지를 가져올 필요가 없으므로 결과를 반환합니다.
+          this.emit(
+            "debug",
+            `Completed fetching documents for board ${boardId}`,
+          );
           resolve(result);
         } else {
           page += 1;
         }
+        this.emit(
+          "debug",
+          `Completed processing page ${page - 1} of board ${boardId}`,
+        );
       }
+      reject("Unexpected error while fetching board data");
     });
   }
 
   document(boardId: string, documentId: number): Promise<Document> {
     return new Promise((resolve, reject) => {
-      // const url = `https://m.dcinside.com/board/${boardId}/${documentId}`;
-      // this.session
-      //   .get(url)
-      //   .then((response) => {
-      //     const html = response.data.trim();
-      //     const converter = new DocumentConverter(this, documentId, boardId);
-      //     resolve(converter.convert(html));
-      //   })
-      //   .catch((err) => {
-      //     if (err instanceof AxiosError) {
-      //       throw new Error("Network Error Occurred: " + err.message);
-      //     } else {
-      //       throw new Error("Unknown error while fetching document: " + err);
-      //     }
-      //   });
+      this.emit(
+        "debug",
+        `Fetching document ${documentId} from board ${boardId}...`,
+      );
+      const url = `https://m.dcinside.com/board/${boardId}/${documentId}`;
+      console.debug(`Fetching document ${documentId} from board ${boardId}...`);
+      this.session
+        .get(url)
+        .then((response) => {
+          const html = response.data.trim();
+          const converter = new DocumentConverter(this, documentId, boardId);
+          resolve(converter.convert(html));
+        })
+        .catch((err) => {
+          if (err instanceof AxiosError) {
+            throw new Error("Network Error Occurred: " + err.message);
+          } else {
+            throw new Error("Unknown error while fetching document: " + err);
+          }
+        });
     });
   }
 
@@ -251,7 +279,7 @@ export class Client extends EventEmitter implements IClient {
     boardId: string,
     documentId: number,
     num = -1,
-    startPage = 1
+    startPage = 1,
   ): Promise<Comment[]> {
     //TODO
     throw "Not implemented";

@@ -90,11 +90,34 @@ export class DocumentIndexListConverter implements IConverter {
         throw new Error("Author ID not found in element");
       }
 
+      const authorType = element.find(".sp-nick")[0];
+
+      let author: Author;
+      if (authorType != null) {
+        const nickType = authorType.attribs.class;
+        if (nickType == "sp-nick nogonick") {
+          author = new Author(authorId, authorName, true, false, false, false);
+        }
+        if (nickType == "sp-nick gonick") {
+          author = new Author(authorId, authorName, true, true, false, false);
+        }
+
+        if (nickType == "sp-nick sub-gonick") {
+          author = new Author(authorId, authorName, true, true, false, true);
+        }
+
+        if (nickType == "sp-nick m-gonick") {
+          author = new Author(authorId, authorName, true, true, true, false);
+        }
+      } else {
+        author = new Author(authorId, authorName, false, false, false, false);
+      }
+
       const time = this.client.util.parseTime($(ginfo[2]).text());
 
       const viewCount: number = parseInt(
         $(ginfo[3]).text().split(" ").pop()!,
-        10
+        10,
       );
 
       const commentCount: number = parseInt(element.find(".ct").text(), 10);
@@ -102,19 +125,18 @@ export class DocumentIndexListConverter implements IConverter {
       const voteupCount: number = parseInt($(ginfo[4].children[0]).text(), 10);
 
       const documentIndex = new DocumentIndex(
+        this.client,
         documentId,
         this.boardId,
         type,
         recommend,
         title,
         subject,
-        new Author(authorId!, authorName!, false, false),
+        author!,
         time,
         viewCount,
         voteupCount,
         commentCount,
-        new Promise((resolve, reject) => {}),
-        new Promise((resolve, reject) => {})
       );
 
       documentIndexes.push(documentIndex);

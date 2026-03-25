@@ -21,9 +21,10 @@
 
  */
 
-import { Author, Document, Comment } from "../index.js";
+import { Author, Document, Comment, Client } from "../index.js";
 
 export class DocumentIndex {
+  client: Client;
   id: number;
   boardId: string;
   type: string;
@@ -35,10 +36,9 @@ export class DocumentIndex {
   viewCount: number;
   voteupCount: number;
   commentCount: number;
-  document: Promise<Document>;
-  comments: Promise<Comment[]>;
 
   constructor(
+    client: Client,
     id: number,
     boardId: string,
     type: string,
@@ -50,9 +50,8 @@ export class DocumentIndex {
     viewCount: number,
     voteupCount: number,
     commentCount: number,
-    document: Promise<Document>,
-    comments: Promise<Comment[]>
   ) {
+    this.client = client;
     this.id = id;
     this.boardId = boardId;
     this.type = type;
@@ -62,14 +61,16 @@ export class DocumentIndex {
     this.author = author;
     this.time = time;
     this.viewCount = viewCount;
-    this.voteupCount = voteupCount;
-    this.commentCount = commentCount;
-    this.document = document;
-    this.comments = comments;
+    this.voteupCount = voteupCount || 0;
+    this.commentCount = commentCount || 0;
+  }
+
+  document(): Promise<Document> {
+    return this.client.document(this.boardId, this.id);
   }
 
   toString() {
-    return `${this.subject}\t|${this.id}\t|${this.time.toLocaleString()}\t|${
+    return `${this.boardId}\t|${this.subject}\t|${this.id}\t|${this.time.toLocaleString()}\t|${
       this.author.name
     }(${this.author.id})\t|${this.title}(${this.commentCount}) +${
       this.voteupCount

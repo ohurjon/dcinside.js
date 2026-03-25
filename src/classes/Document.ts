@@ -1,6 +1,7 @@
-import { Author, Image, Comment } from "../index.js";
+import { Author, Image, Comment, Client } from "../index.js";
 
 export class Document {
+  client : Client;
   id: number;
   boardId: string;
   title: string;
@@ -16,6 +17,7 @@ export class Document {
   images: Image[];
   html: string;
   constructor(
+    client: Client,
     id: number,
     boardId: string,
     title: string,
@@ -31,6 +33,7 @@ export class Document {
     html: string,
     comments: Comment[]
   ) {
+    this.client = client;
     this.id = id;
     this.boardId = boardId;
     this.title = title;
