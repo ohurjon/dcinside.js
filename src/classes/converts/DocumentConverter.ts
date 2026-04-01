@@ -30,7 +30,7 @@ export class DocumentConverter implements IConverter {
     $(".adv-groupno").remove();
 
     let header = $(".gallview-tit-box");
-    let gallview = $(".gall-thum-btm-inner");
+    // let gallview = $(".gall-thum-btm-inner");
     let content = $(".thum-txtin");
 
     const fullTitle = $(header).find(".tit").text().trim();
@@ -40,7 +40,7 @@ export class DocumentConverter implements IConverter {
     let ctBox = $(".ct-box");
 
     const header_ginfo = $(header).find(".ginfo2");
-    const gallView_ginfo = $(gallview).find(".ginfo2").children();
+    // const gallView_ginfo = $(gallview).find(".ginfo2").children();
 
     const ginfo_area = $(header_ginfo).find(".ginfo-area span");
 
@@ -101,8 +101,10 @@ export class DocumentConverter implements IConverter {
     // const viewCount = parseInt(
     //   gallView_ginfo[0].children[0].data.split(" ").pop(),
     // );
-    const time = new Date();
-    // const time = parseTime(header_ginfo[1].children[0].data);
+
+    const time = this.client.util.parseTime(
+      $(header_ginfo).find("li:nth-child(2)").text(),
+    );
     const voteupCount = parseInt(ctBox.find("#recomm_btn.ct").text());
     const votedownCount = 0;
     const loginedVoteupCount = parseInt(

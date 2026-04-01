@@ -16,9 +16,13 @@ client.on("verbose", (info) => {
 
 let d = 0;
 
-client.on("update", async (data) => {
-  console.log(data.toString());
-  const doc = await data.document();
+client.document("sff", 1595638).then((doc) => {
+  console.log(doc);
 });
 
-client.watch("sff", 5);
+// client.on("update", async (data) => {
+//   console.log(data.toString());
+//   const doc = await data.document();
+// });
+
+// client.watch("sff", 5);
