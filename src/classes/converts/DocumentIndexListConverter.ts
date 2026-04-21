@@ -95,22 +95,28 @@ export class DocumentIndexListConverter implements IConverter {
       let author: Author;
       if (authorType != null) {
         const nickType = authorType.attribs.class;
-        if (nickType == "sp-nick nogonick") {
-          author = new Author(authorId, authorName, true, false, false, false);
-        }
-        if (nickType == "sp-nick gonick") {
-          author = new Author(authorId, authorName, true, true, false, false);
-        }
 
-        if (nickType == "sp-nick sub-gonick") {
-          author = new Author(authorId, authorName, true, true, false, true);
-        }
-
-        if (nickType == "sp-nick m-gonick") {
-          author = new Author(authorId, authorName, true, true, true, false);
+        if (nickType.includes("sp-nick")) {
+          author = new Author(
+            authorId,
+            authorName,
+            nickType.includes("gonick"),
+            !nickType.includes("no"),
+            nickType.includes("sub-"),
+            nickType.includes("m-"),
+            nickType.includes("new"),
+          );
         }
       } else {
-        author = new Author(authorId, authorName, false, false, false, false);
+        author = new Author(
+          authorId,
+          authorName,
+          false,
+          false,
+          false,
+          false,
+          false,
+        );
       }
 
       const time = this.client.util.parseTime($(ginfo[2]).text());

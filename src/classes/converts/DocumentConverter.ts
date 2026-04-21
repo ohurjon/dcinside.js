@@ -55,19 +55,17 @@ export class DocumentConverter implements IConverter {
       const id = $(header_ginfo)
         .find(".ginfo-area a")[0]
         .attribs.href.split("/")[2];
-      if (nickType == "sp-nick nogonick") {
-        author = new Author(id, authorName, true, false, false, false);
-      }
-      if (nickType == "sp-nick gonick") {
-        author = new Author(id, authorName, true, true, false, false);
-      }
 
-      if (nickType == "sp-nick sub-gonick") {
-        author = new Author(id, authorName, true, true, false, true);
-      }
-
-      if (nickType == "sp-nick m-gonick") {
-        author = new Author(id, authorName, true, true, true, false);
+      if (nickType.includes("sp-nick")) {
+        author = new Author(
+          id,
+          authorName,
+          nickType.includes("gonick"),
+          !nickType.includes("no"),
+          nickType.includes("sub-"),
+          nickType.includes("m-"),
+          nickType.includes("new"),
+        );
       }
     } else {
       const authorName = $(header_ginfo)
@@ -77,6 +75,7 @@ export class DocumentConverter implements IConverter {
       author = new Author(
         ginfo_area.text().replace("(", "").replace(")", "").trim(),
         authorName,
+        false,
         false,
         false,
         false,

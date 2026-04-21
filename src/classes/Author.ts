@@ -5,6 +5,7 @@ export class Author {
   pinned: boolean;
   manager: boolean;
   sub: boolean;
+  newbie: boolean;
   constructor(
     id: string,
     name: string,
@@ -12,6 +13,7 @@ export class Author {
     pinned: boolean,
     sub: boolean,
     manager: boolean,
+    newbie: boolean,
   ) {
     this.id = id;
     this.name = name;
@@ -19,5 +21,6 @@ export class Author {
     this.pinned = pinned;
     this.manager = manager;
     this.sub = sub;
+    this.newbie = newbie;
   }
 }
