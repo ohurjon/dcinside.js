@@ -48,7 +48,7 @@ export class DocumentConverter implements IConverter {
 
     let author = undefined;
 
-    if (ginfo_area.length > 0) {
+    if (ginfo_area.length > 0 && ginfo_area[0].attributes[0] !== undefined) {
       const ginfoAreaTypeAttribute = ginfo_area[0].attributes[0];
 
       const authorName = $("#real_name")[0].attribs["value"];

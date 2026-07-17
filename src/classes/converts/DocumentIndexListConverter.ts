@@ -144,7 +144,7 @@ export class DocumentIndexListConverter implements IConverter {
 
       const commentCount: number = parseInt(element.find(".ct").text(), 10);
 
-      const voteupCount: number = parseInt($(ginfo[4].children[0]).text(), 10);
+      const voteupCount: number = parseInt($(ginfo[3]).find("span").text(), 10);
 
       const documentIndex = new DocumentIndex(
         this.client,
