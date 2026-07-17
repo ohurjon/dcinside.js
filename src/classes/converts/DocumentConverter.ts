@@ -44,13 +44,16 @@ export class DocumentConverter implements IConverter {
 
     const ginfo_area = $(header_ginfo).find(".ginfo-area span");
 
-    const ginfoAreaTypeAttribute = ginfo_area[0].attributes[0];
+    const best_area = $(header_ginfo).find(".ginfo-area img");
 
     let author = undefined;
 
-    if (ginfoAreaTypeAttribute != undefined) {
+    if (ginfo_area.length > 0) {
+      const ginfoAreaTypeAttribute = ginfo_area[0].attributes[0];
+
       const authorName = $("#real_name")[0].attribs["value"];
       // console.log(authorName);
+
       const nickType = ginfoAreaTypeAttribute.value;
       const id = $(header_ginfo)
         .find(".ginfo-area a")[0]
@@ -65,8 +68,28 @@ export class DocumentConverter implements IConverter {
           nickType.includes("sub-"),
           nickType.includes("m-"),
           nickType.includes("new"),
+          false,
         );
       }
+    } else if (best_area.length > 0) {
+      const authorName = $("#real_name")[0].attribs["value"];
+
+      const img_link = best_area[0].attribs["src"];
+
+      const id = $(header_ginfo)
+        .find(".ginfo-area a")[0]
+        .attribs.href.split("/")[2];
+
+      author = new Author(
+        id,
+        authorName,
+        true,
+        img_link.includes("fix"),
+        img_link.includes("_submanager"),
+        img_link.includes("_manager"),
+        false,
+        true,
+      );
     } else {
       const authorName = $(header_ginfo)
         .find(".ginfo-area .nick")
@@ -75,6 +98,7 @@ export class DocumentConverter implements IConverter {
       author = new Author(
         ginfo_area.text().replace("(", "").replace(")", "").trim(),
         authorName,
+        false,
         false,
         false,
         false,

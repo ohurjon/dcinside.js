@@ -6,6 +6,7 @@ export class Author {
   manager: boolean;
   sub: boolean;
   newbie: boolean;
+  best: boolean;
   constructor(
     id: string,
     name: string,
@@ -14,6 +15,7 @@ export class Author {
     sub: boolean,
     manager: boolean,
     newbie: boolean,
+    best: boolean,
   ) {
     this.id = id;
     this.name = name;
@@ -22,5 +24,6 @@ export class Author {
     this.manager = manager;
     this.sub = sub;
     this.newbie = newbie;
+    this.best = best;
   }
 }

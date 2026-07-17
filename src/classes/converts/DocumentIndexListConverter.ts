@@ -92,6 +92,8 @@ export class DocumentIndexListConverter implements IConverter {
 
       const authorType = element.find(".sp-nick")[0];
 
+      const best_area = element.find("img")[0];
+
       let author: Author;
       if (authorType != null) {
         const nickType = authorType.attribs.class;
@@ -105,12 +107,26 @@ export class DocumentIndexListConverter implements IConverter {
             nickType.includes("sub-"),
             nickType.includes("m-"),
             nickType.includes("new"),
+            false,
           );
         }
+      } else if (best_area != null) {
+        const img_link = best_area.attribs["src"];
+        author = new Author(
+          id,
+          authorName,
+          true,
+          img_link.includes("fix"),
+          img_link.includes("_submanager"),
+          img_link.includes("_manager"),
+          false,
+          true,
+        );
       } else {
         author = new Author(
           authorId,
           authorName,
+          false,
           false,
           false,
           false,
