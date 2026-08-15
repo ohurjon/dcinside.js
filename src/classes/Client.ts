@@ -15,6 +15,8 @@ import {
   Util,
 } from "../index.js";
 
+import https from "https";
+
 interface IClient {
   watch(boardId: string, delay: number, limit?: number | null): void;
   gallery(name?: string | null): Promise<Gallery[]>;
@@ -94,6 +96,7 @@ export class Client extends EventEmitter implements IClient {
     super();
 
     this.session = axios.create({
+      httpsAgent: new https.Agent({ keepAlive: true }),
       headers: { ...GET_HEADERS },
       withCredentials: true,
     });
