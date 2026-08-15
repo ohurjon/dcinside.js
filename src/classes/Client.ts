@@ -16,6 +16,7 @@ import {
 } from "../index.js";
 
 import https from "https";
+import http from "http";
 
 interface IClient {
   watch(boardId: string, delay: number, limit?: number | null): void;
@@ -95,8 +96,22 @@ export class Client extends EventEmitter implements IClient {
   constructor() {
     super();
 
+    const httpAgent = new http.Agent({
+      keepAlive: true,
+      keepAliveMsecs: 10000,
+      agentKeepAliveTimeoutBuffer: 10000,
+    });
+    const httpsAgent = new https.Agent({
+      keepAlive: true,
+      keepAliveMsecs: 10000,
+      agentKeepAliveTimeoutBuffer: 10000,
+    });
+
     this.session = axios.create({
-      httpsAgent: new https.Agent({ keepAlive: true }),
+      httpAgent,
+      httpsAgent,
+      baseURL: "https://m.dcinside.com",
+      timeout: 3000,
       headers: { ...GET_HEADERS },
       withCredentials: true,
     });
@@ -137,7 +152,7 @@ export class Client extends EventEmitter implements IClient {
 
   gallery(id: string | null): Promise<Gallery[]> {
     return new Promise(async (resolve, reject) => {
-      let url = "https://m.dcinside.com/galltotal";
+      let url = "/galltotal";
 
       try {
         const response = await this.session.get(url);
@@ -182,9 +197,9 @@ export class Client extends EventEmitter implements IClient {
       let result: DocumentIndex[] = [];
       let stop = false;
       while (!stop) {
-        let url = `https://m.dcinside.com/board/${boardId}?page=${page}`;
+        let url = `/board/${boardId}?page=${page}`;
         if (recommend) {
-          url = `https://m.dcinside.com/board/${boardId}?recommend=1&page=${page}`;
+          url = `/board/${boardId}?recommend=1&page=${page}`;
         }
         this.emit("debug", `Fetching board data from: ${url}`);
 
@@ -259,7 +274,7 @@ export class Client extends EventEmitter implements IClient {
         "debug",
         `Fetching document ${documentId} from board ${boardId}...`,
       );
-      const url = `https://m.dcinside.com/board/${boardId}/${documentId}`;
+      const url = `/board/${boardId}/${documentId}`;
       console.debug(`Fetching document ${documentId} from board ${boardId}...`);
       this.session
         .get(url)
