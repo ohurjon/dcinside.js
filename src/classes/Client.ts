@@ -174,10 +174,23 @@ export class Client extends EventEmitter implements IClient {
         }
       } catch (err) {
         if (err instanceof AxiosError) {
-          console.error("AxiosError:", err);
-          reject("Network Error Occurred : " + err.message);
+          if (err.code === "ECONNABORTED") {
+            this.emit(
+              "error",
+              "Request timed out while fetching gallery list: " + err.message,
+            );
+            reject(
+              "Request timed out while fetching gallery list: " + err.message,
+            );
+          } else {
+            this.emit("error", "Network Error Occurred : " + err.message);
+            reject("Network Error Occurred : " + err.message);
+          }
         } else {
-          console.error("Unknown error:", err);
+          this.emit(
+            "error",
+            "Unknown error while fetching gallery list: " + err,
+          );
           reject("Unknown error while fetching gallery list: " + err);
         }
       }
@@ -285,9 +298,19 @@ export class Client extends EventEmitter implements IClient {
         })
         .catch((err) => {
           if (err instanceof AxiosError) {
-            throw new Error("Network Error Occurred: " + err.message);
+            if (err.code === "ECONNABORTED") {
+              this.emit(
+                "error",
+                "Request timed out while fetching document: " + err.message,
+              );
+              this.document(boardId, documentId).then(resolve).catch(reject);
+            } else {
+              this.emit("error", "Network Error Occurred: " + err.message);
+              reject("Network Error Occurred: " + err.message);
+            }
           } else {
-            throw new Error("Unknown error while fetching document: " + err);
+            this.emit("error", "Unknown error while fetching document: " + err);
+            reject("Unknown error while fetching document: " + err);
           }
         });
     });
