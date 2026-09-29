@@ -1,4 +1,6 @@
-import axios, { AxiosError, AxiosInstance } from "axios";
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
+
+import { installErrorInterceptor } from "../lib/error-interceptor.js";
 
 import EventEmitter from "events";
 
@@ -17,6 +19,7 @@ import {
 
 import https from "https";
 import http from "http";
+import { AnyARecord } from "dns";
 
 interface IClient {
   watch(boardId: string, delay: number, limit?: number | null): void;
@@ -96,20 +99,7 @@ export class Client extends EventEmitter implements IClient {
   constructor() {
     super();
 
-    const httpAgent = new http.Agent({
-      keepAlive: true,
-      keepAliveMsecs: 10000,
-      agentKeepAliveTimeoutBuffer: 10000,
-    });
-    const httpsAgent = new https.Agent({
-      keepAlive: true,
-      keepAliveMsecs: 10000,
-      agentKeepAliveTimeoutBuffer: 10000,
-    });
-
     this.session = axios.create({
-      httpAgent,
-      httpsAgent,
       baseURL: "https://m.dcinside.com",
       timeout: 3000,
       headers: { ...GET_HEADERS },
@@ -117,82 +107,70 @@ export class Client extends EventEmitter implements IClient {
     });
 
     this.util = new Util();
+
+    installErrorInterceptor(this, this.session);
   }
 
-  async watch(boardId: string, delay: number, limit: number | null = null) {
-    let lastIndex = 0;
-
+  watch(
+    boardId: string,
+    delay: number,
+    limit: number | null = null,
+    lastIndex: number = 0,
+  ): void {
     this.emit("task", `Watching board: ${boardId}`);
 
-    while (true) {
-      this.emit("debug", `Fetching updates for board: ${boardId}`);
-      const list = await this.board(
-        boardId,
-        20,
-        1,
-        false,
-        limit,
-        lastIndex + 1,
-      );
+    this.emit(
+      "debug",
+      `${boardId} 갤러리에서 ${delay} 초 마다 문서를 확인합니다. (lastIndex: ${lastIndex})`,
+    );
 
-      list.reverse().forEach((data: DocumentIndex) => {
+    this.board(boardId, 20, 1, false, limit, lastIndex + 1).then((data) => {
+      data.reverse().forEach((data: DocumentIndex) => {
         this.emit("verbose", `${boardId} ${data.subject} - ${data.title}`);
-        this.emit("update", data);
+        if (data.id > lastIndex) {
+          this.emit("update", data);
+        } else {
+          this.emit(
+            "debug",
+            `문서 ${data.id}는 ${lastIndex}보다 오래되었습니다. 건너뜁니다.`,
+          );
+        }
+
         lastIndex = data.id;
       });
-
-      if (limit == lastIndex) {
-        this.emit("debug", `Reached limit of ${limit}. Stopping watch.`);
-        break;
+      if (limit && limit <= lastIndex) {
+        this.emit(
+          "debug",
+          `${limit} 제한에 도달했습니다.  ${boardId} 갤러리 감시를 종료합니다.`,
+        );
+        return;
       }
-
-      await this.util.sleep(delay * 1000);
-    }
+      setTimeout(() => {
+        this.watch(boardId, delay, limit, lastIndex);
+      }, delay * 1000);
+    });
   }
 
   gallery(id: string | null): Promise<Gallery[]> {
     return new Promise(async (resolve, reject) => {
       let url = "/galltotal";
 
-      try {
-        const response = await this.session.get(url);
-        const html = response.data.trim();
-        const converter = new GalleryListConverter(this);
+      const response = await this.session.get(url, { retry: 3 });
+      const html = response.data.trim();
+      const converter = new GalleryListConverter(this);
 
-        const data = converter.convert(html);
+      const data = converter.convert(html);
 
-        if (id) {
-          const gallery = data.get(id);
+      if (id) {
+        const gallery = data.get(id);
 
-          if (gallery == undefined) {
-            resolve([]);
-          } else {
-            resolve([gallery]);
-          }
+        if (gallery == undefined) {
+          resolve([]);
         } else {
-          resolve(Array.from(data.values()));
+          resolve([gallery]);
         }
-      } catch (err) {
-        if (err instanceof AxiosError) {
-          if (err.code === "ECONNABORTED") {
-            this.emit(
-              "error",
-              "Request timed out while fetching gallery list: " + err.message,
-            );
-            reject(
-              "Request timed out while fetching gallery list: " + err.message,
-            );
-          } else {
-            this.emit("error", "Network Error Occurred : " + err.message);
-            reject("Network Error Occurred : " + err.message);
-          }
-        } else {
-          this.emit(
-            "error",
-            "Unknown error while fetching gallery list: " + err,
-          );
-          reject("Unknown error while fetching gallery list: " + err);
-        }
+      } else {
+        resolve(Array.from(data.values()));
       }
     });
   }
@@ -204,26 +182,29 @@ export class Client extends EventEmitter implements IClient {
     recommend: boolean = false,
     documentIdUpperLimit: number | null = null,
     documentIdLowerLimit: number | null = null,
+    page: number = startPage,
+    result: DocumentIndex[] = [],
   ): Promise<DocumentIndex[]> {
-    return new Promise(async (resolve, reject) => {
-      let page = startPage;
-      let result: DocumentIndex[] = [];
-      let stop = false;
-      while (!stop) {
-        let url = `/board/${boardId}?page=${page}`;
-        if (recommend) {
-          url = `/board/${boardId}?recommend=1&page=${page}`;
-        }
-        this.emit("debug", `Fetching board data from: ${url}`);
+    return new Promise((resolve, reject) => {
+      let url = `/board/${boardId}?page=${page}`;
+      if (recommend) {
+        url = `/board/${boardId}?recommend=1&page=${page}`;
+      }
 
-        const response = await this.session.get(url);
-        const html = response.data.trim();
+      this.emit(
+        "debug",
+        `${boardId} 갤러리에서 ${startPage} 페이지부터 ${num} 개의 게시물을 불러옵니다...`,
+      );
+
+      this.session.get(url, { retry: 5 }).then((response) => {
+        const html = response!.data.trim();
 
         const converter = new DocumentIndexListConverter(this, boardId);
         const data: DocumentIndex[] = converter.convert(html);
+
         this.emit(
           "debug",
-          `Fetched ${data.length} documents from page ${page} of board ${boardId}`,
+          `${boardId} 갤러리에서 ${data.length}개의 문서를 ${page}페이지에서 불러왔습니다.`,
         );
 
         this.emit(
@@ -240,44 +221,61 @@ export class Client extends EventEmitter implements IClient {
 
         for (const indexData of indexes) {
           this.emit("verbose", `Processing document : ${indexData}`);
-          const id = indexData.id;
-          if (num <= result.length) {
-            // num이 이미 충족된 경우, 더 이상 문서를 추가하지 않고 루프를 종료합니다.
-            this.emit("debug", `Reached limit of ${num} documents. Stopping.`);
-            stop = true;
-          } else {
-            if (documentIdLowerLimit == null || id >= documentIdLowerLimit) {
-              if (documentIdUpperLimit == null || id <= documentIdUpperLimit) {
-                // 문서가 범위 내에 있는 경우 결과에 추가합니다.
-                this.emit("debug", `Adding document ${id} to results`);
-                result.push(indexData);
-              }
-            } else {
-              // 문서가 범위 밖에 있는 경우, 더 이상 문서를 추가하지 않고 루프를 종료합니다.
+          if (
+            documentIdLowerLimit == null ||
+            indexData.id >= documentIdLowerLimit
+          ) {
+            if (
+              documentIdUpperLimit == null ||
+              indexData.id <= documentIdUpperLimit
+            ) {
+              // 문서가 범위 내에 있는 경우 결과에 추가합니다.
               this.emit(
                 "debug",
-                `Skipping document ${id} as it is outside the specified range`,
+                `${boardId} 갤러리에서 문서 ${indexData.id}를 검색 결과에 추가합니다.`,
               );
-              stop = true;
+              if (result.length < num) {
+                this.emit(
+                  "debug",
+                  `result에 ${indexData.id} 문서를 추가합니다. (현재 result 길이: ${result.length}, 목표: ${num})`,
+                );
+                result.push(indexData);
+              } else {
+                this.emit(
+                  "debug",
+                  `${page} 페이지에서 ${indexes.length}개의 문서를 찾았고, 조건에 맞는 결과가 충분하여 반환합니다. (result length: ${result.length}, required: ${num})`,
+                );
+                resolve(result);
+                return;
+              }
             }
+          } else {
+            this.emit(
+              "debug",
+              `문서 ${indexData.id}는 ${documentIdLowerLimit}보다 오래되었습니다. 건너뜁니다.`,
+            );
+            resolve(result);
+            return;
           }
         }
-        if (stop) {
-          // 더 이상 페이지를 가져올 필요가 없으므로 결과를 반환합니다.
-          this.emit(
-            "debug",
-            `Completed fetching documents for board ${boardId}`,
-          );
-          resolve(result);
-        } else {
-          page += 1;
-        }
+
         this.emit(
           "debug",
-          `Completed processing page ${page - 1} of board ${boardId}`,
+          `${boardId} 갤러리 ${page} 페이지에서 ${indexes.length}개의 문서를 찾았으나 조건에 맞지 않아 다음 페이지를 불러옵니다... (result length: ${result.length}, required: ${num})`,
         );
-      }
-      reject("Unexpected error while fetching board data");
+        resolve(
+          this.board(
+            boardId,
+            num,
+            startPage,
+            recommend,
+            documentIdUpperLimit,
+            documentIdLowerLimit,
+            page + 1,
+            result,
+          ),
+        );
+      });
     });
   }
 
@@ -285,34 +283,24 @@ export class Client extends EventEmitter implements IClient {
     return new Promise((resolve, reject) => {
       this.emit(
         "debug",
-        `Fetching document ${documentId} from board ${boardId}...`,
+        ` ${boardId} 갤러리에서 ${documentId}번 문서 가져오는 중...`,
       );
       const url = `/board/${boardId}/${documentId}`;
-      console.debug(`Fetching document ${documentId} from board ${boardId}...`);
-      this.session
-        .get(url)
-        .then((response) => {
+
+      this.session.get(url, { retry: 5 }).then(
+        (response) => {
           const html = response.data.trim();
           const converter = new DocumentConverter(this, documentId, boardId);
           resolve(converter.convert(html));
-        })
-        .catch((err) => {
-          if (err instanceof AxiosError) {
-            if (err.code === "ECONNABORTED") {
-              this.emit(
-                "error",
-                "Request timed out while fetching document: " + err.message,
-              );
-              this.document(boardId, documentId).then(resolve).catch(reject);
-            } else {
-              this.emit("error", "Network Error Occurred: " + err.message);
-              reject("Network Error Occurred: " + err.message);
-            }
-          } else {
-            this.emit("error", "Unknown error while fetching document: " + err);
-            reject("Unknown error while fetching document: " + err);
-          }
-        });
+        },
+        (error) => {
+          this.emit(
+            "error",
+            `${boardId} 갤러리에서 ${documentId}번 문서 가져오기 실패 : ${error.message}`,
+          );
+          reject(error);
+        },
+      );
     });
   }
 
